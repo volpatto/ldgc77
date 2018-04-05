@@ -3,6 +3,10 @@ FC=ifort
 FCFLAGS=-c -qopenmp #-qopt-report=5
 FLFLAGS=-qopenmp
 
+#Threads
+NUMTHREADS=4
+NUMTHREADS?=
+
 # source files and objects
 SRCS = $(patsubst %.f, %.o, $(wildcard *.f))
 
@@ -18,6 +22,10 @@ run:
 runB: $(PROGRAM)
 		@echo "******************* Running ***********************"
 		time ./$(PROGRAM)
+
+runP: 
+		@echo "************* Running in parallel *****************"
+		export OMP_NUM_THREADS=$(NUMTHREADS) ; time ./$(PROGRAM)
 
 # Linking
 $(PROGRAM): $(SRCS)

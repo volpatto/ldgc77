@@ -2,7 +2,7 @@
 
 This implementation is related to the one detailed in the paper [Locally discontinuous but globally continuous Galerkin methods for elliptic problems](https://doi.org/10.1016/j.cma.2012.11.013) presented by Arruda, Loula and Almeida (2013).
 
-It's available here only for academic purposes. No documentation or any use instruction will be provided, althought one can use in the sense of GNU GPL v3.0 license, as one can check in the LICENSE file.
+The code available here is only for academic purposes. No documentation or any use instruction will be provided, althought one can use in the sense of GNU GPL v3.0 license, as one can check in the LICENSE file.
 
 ## Contact
 

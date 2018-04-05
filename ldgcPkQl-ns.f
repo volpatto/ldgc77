@@ -5677,6 +5677,7 @@ c        plane elasticity element and
 c        assemble into the global left-hand-side matrix
 c        and right-hand side vector
 c
+      use omp_lib
       implicit real*8 (a-h,o-z)
 c                                                                       
 c.... remove above card for single-precision operation               
@@ -5713,6 +5714,8 @@ c
 c
       common /consts/ zero,pt1667,pt25,pt5,one,two,three,four,five,six
       common /iounit/ iin,iout,iecho,ioupp,itest1,itest2  
+ccccc$OMP PARALLEL DEFAULT(PRIVATE) SHARED(ALHS,DLHS,BRHS,IDIAG,LM)
+c$OMP PARALLEL SHARED(ALHS,DLHS,BRHS,IDIAG,LM)
 c
 c      consistent matrix
 c      
@@ -5722,7 +5725,9 @@ c
       gf2=grav(2)
       gf3=grav(3)      
 c
+c$OMP DO
       do 500 nel=1,numel
+      print*, "Thread = ", omp_get_thread_num()
 c
 c      clear stiffness matrix and force array
 c
@@ -6195,6 +6200,7 @@ c
 c
   500 continue
 c
+c$OMP END PARALLEL
       return
       end
 c**** new ********************************************************************** 
