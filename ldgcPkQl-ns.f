@@ -38,8 +38,9 @@ c
 c.... program to set storage capacity, precision and input/output units
 c
       common /bpoint/ mfirst,mlast,ilast,mtot,iprec
-      common /iounit/ iin,iout,iecho,ioupp,itest1,itest2 
-      character*4 ia 
+      common /iounit/ iin,iout,iecho,ioupp,itest1,itest2,itimes
+      character*4 ia
+      real*4 time_begin, time_end
       parameter (ndim=200000000) 
       common a(ndim) 
       common /dictn/ ia(10000000)
@@ -54,14 +55,17 @@ c
       iout= 11
       iecho=12
       ioupp=13
-	itest1=14
-	itest2=15
+      itest1=14
+      itest2=15
+      itimes=9123
+    
       open(unit=iin, file= 'ldgcPkQl.dat',status='old')
       open(unit=iecho, file= 'ldgcPkQl.eco')	
       open(unit=iout, file= 'errofem-ns-c.con')      
       open(unit=ioupp, file= 'ldgherrol-ns-c.con')
       open(unit=itest1, file= 'errointer-c.con')      
       open(unit=itest2, file= 'teste2-c.con')
+      open(unit=itimes, file= 'time_perf.dat')	
 c
       mfirst = 1 
       ilast  = 0 
@@ -72,9 +76,14 @@ c
 c        iin    = input unit number
 c        iecho  = output unit of input data
 c        ioupp  = output unit of post-processed displacements
+c        itimes  = output unit of time measurements performances
 c
 c
-         call lpgm
+       call cpu_time(time_begin)
+       call lpgm
+       call cpu_time(time_end)
+       write(itimes,1111) "LDGC:", time_end-time_begin
+1111   format(a20,4x,f15.5)
 c
 c.... system-dependent unit/file specifications
 c
@@ -85,6 +94,7 @@ c
 	   close(ioupp)
 	   close(itest1)
 	   close(itest2)
+	   close(itimes)
 c
       stop
       end
@@ -97,6 +107,7 @@ c            Petrov Galerkin methods : global driver
 c
       real*8 zero,pt1667,pt25,pt5,one,two,three,four,five,six,
      & tempf
+      real*4 time_begin, time_end
       character*4 title
 c
 c.... remove above card for single-precision operation
@@ -110,7 +121,7 @@ c
       common /genflc/ tempf(6,20),nf,numgpf,nincf(3),incf(3)
       common /info  / iexec,iprtin,irank,nsd,numnp,ndof,nlvect,
      &                numeg,nmultpd,nmultpc,nedge
-      common /iounit/ iin,iout,iecho,ioupp,itest1,itest2 
+      common /iounit/ iin,iout,iecho,ioupp,itest1,itest2,itimes
       common /labels/ labeld(3),label1(16),label2(3)
       common /spoint/ mpd,mpdprj,mpx,mpidc,mpiedge,mpf,mpdiag,
      &                mpngrp,mpalhs,mpdlhs,mpbrhs,mped,index
@@ -119,6 +130,7 @@ c
       common a(1) 
       common /dictn/ ia(1) 
 
+      call cpu_time(time_begin)
 c
 c.... input phase
 c
@@ -204,6 +216,9 @@ c
 c.... write equation system data
 c
       write(iecho,5000) title,neqc,nalhs,meanbw,nwords
+      call cpu_time(time_end)
+      write(itimes,1111) "Setup:", time_end-time_begin
+1111  format(a20,4x,f15.5)
 c
 c.... solution phase
 c
@@ -261,13 +276,16 @@ c
       common /info  / iexec,iprtin,irank,nsd,numnp,ndof,nlvect,
      &                numeg,nmultpd,nmultpc,nedge
 
-      common /iounit/ iin,iout,iecho,ioupp,itest1,itest2 
+      common /iounit/ iin,iout,iecho,ioupp,itest1,itest2,
+     &                itimes 
       common /spoint/ mpd,mpdprj,mpx,mpidc,mpiedge,mpf,mpdiag,
      &                mpngrp,mpalhs,mpdlhs,mpbrhs,mped,index
 
       character*4 ia 
       common a(1) 
       common /dictn/ ia(1)
+      real*4 time_begin,time_end
+      call cpu_time(time_begin)
 c
 c
 c      clear left and right hand side
@@ -293,11 +311,15 @@ c
 c      form the l.h.s and r.h.s. at element level
 c
       call elemnt('form_lrs',a(mpngrp))
+
+      call cpu_time(time_end)
+      write(itimes,1112) "Assembling:", time_end-time_begin
 c
 cc      call teste(a(mpidc),ndof,nmultpc)
 c
 c      factorization of the stiffnes matrix
 c
+      call cpu_time(time_begin)
       if(neqc.eq.0) go to 1111
       call factns(a(mpalhs),a(mpdlhs),a(mpdiag),neqc)
 c
@@ -308,6 +330,9 @@ c
  1111 continue  
 c
       call  btod(a(mpidc),a(mpd),a(mpbrhs),ndof,nmultpc)
+
+      call cpu_time(time_end)
+      write(itimes,1112) "Solver:", time_end-time_begin
 c
 c.... write output 
 c
@@ -318,11 +343,15 @@ c
 c
 c	post-processing phase
 c
+      call cpu_time(time_begin)
       call elemnt('pos_proc',a(mpngrp))
+      call cpu_time(time_end)
+      write(itimes,1112) "Post-processing:", time_end-time_begin
 c
 c
 100   continue
 c
+1112  format(a20,4x,f15.5)
       return
       end 
 c**** new **********************************************************************
@@ -5714,8 +5743,13 @@ c
 c
       common /consts/ zero,pt1667,pt25,pt5,one,two,three,four,five,six
       common /iounit/ iin,iout,iecho,ioupp,itest1,itest2  
-ccccc$OMP PARALLEL DEFAULT(PRIVATE) SHARED(ALHS,DLHS,BRHS,IDIAG,LM)
-c$OMP PARALLEL SHARED(ALHS,DLHS,BRHS,IDIAG,LM)
+!!!!$OMP PARALLEL SHARED(ALHS,DLHS,BRHS,IDIAG,LM)
+!!$OMP PARALLEL DEFAULT(PRIVATE) SHARED(ALHS,DLHS,BRHS,IDIAG,LM)
+!!$OMP& SHARED(ELEFFD, ELMBB, ELMCB, ELMBC, ELRESD, ELFBB)
+!!$OMP& SHARED(IEN, X, XL, IPAR, D, DL, MAT, DETP, SHLP, SHGP)
+!!$OMP& SHARED(SHL, SHLPSD, SHGPSD, SHLSD, C, W, FELM, IDSIDE)
+!!$OMP& SHARED(IDLSD,XLS,DETN,SHLB,SHLN,SHGN,GRAV)
+!!$OMP PARALLEL
 c
 c      consistent matrix
 c      
@@ -5725,9 +5759,11 @@ c
       gf2=grav(2)
       gf3=grav(3)      
 c
-c$OMP DO
+!!$OMP DO
       do 500 nel=1,numel
-      print*, "Thread = ", omp_get_thread_num()
+!      write(*,'(3((a),1x,(i0),1x),(a))') "Nel =", nel, "Thread =", 
+!     & omp_get_thread_num(), "of" , omp_get_num_threads(),
+!     & "available threads"
 c
 c      clear stiffness matrix and force array
 c
@@ -5791,6 +5827,10 @@ c
 c
 c.....loop on integration points
 c
+! Volpatto 04/2018 OK!!!!!!!!!!
+!$omp parallel do private(xx,yy,pix,piy,sx,sy,cx,cy)
+!$omp& private(pi2,co,ax,by,pss,djx,djy,djn,nbj,nbj1)
+!$omp& private(nbi,nbi1,dix,diy,din,c1)
       do 400 l=1,nint
       c1=detp(l)*w(l)
 c      
@@ -5804,6 +5844,7 @@ c
       xx=xx+shl(3,i,l)*xl(1,i)
       yy=yy+shl(3,i,l)*xl(2,i)
 2323  continue
+!      write(*,*) xx, yy; !stop
 c
       pix=pi*xx
       piy=pi*yy
@@ -5821,6 +5862,9 @@ c
 c
 c      loop computer volume integrals
 c
+! Essa regiao critica nao pode ser evitada. Isso eh pessimo,
+! pois se trata de um loop interno com loop interno. Volpatto 04/2018
+!$omp critical
       do 3000 j=1,nenp
       djx=shgp(1,j,l)*c1
       djy=shgp(2,j,l)*c1
@@ -5853,6 +5897,7 @@ c
  3003 continue
 c
  3000 continue
+!$omp end critical
   400 continue
 c
 c     armazena o vetor de carga por elementos
@@ -5862,7 +5907,7 @@ c
        end do
 c
 c......boundary terms - due to symmetrization
-c      typical of disconyinuous Galerkin methods 
+c      typical of discontinuous Galerkin methods 
 c      with SIP 
 c
       do 4000 ns=1,nside
@@ -6200,7 +6245,7 @@ c
 c
   500 continue
 c
-c$OMP END PARALLEL
+!!$OMP END PARALLEL
       return
       end
 c**** new ********************************************************************** 
